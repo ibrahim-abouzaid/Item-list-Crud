@@ -39,7 +39,6 @@
         </div>
     
       <input type="hidden" required name="itemId" value= ${param.id} >
-      <input type="hidden" required name="itemHasDetails" value="True" >
       <input type="hidden" required name="action" value="add-details">
 
    

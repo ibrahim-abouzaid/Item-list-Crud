@@ -10,6 +10,7 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import javax.sql.DataSource;
 
 import model.Item;
@@ -30,12 +31,20 @@ public class ItemController extends HttpServlet {
 
 	@Override
 	public void init() throws ServletException {
+		 if (dataSource == null) {
+		        throw new ServletException("DataSource not initialized!");
+		    }
 		itemService = new ItemServiceImp(dataSource);
 	}
 	/**
 	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		HttpSession session = request.getSession();
+		if(session.getAttribute("user") == null) {
+			response.sendRedirect("signUp-page.html");
+			return;
+		}
 		 String action = request.getParameter("action");
 	        if (Objects.isNull(action)) {
 	            action = "load-items";
@@ -59,14 +68,14 @@ public class ItemController extends HttpServlet {
                 return;
             default :
             	this.loadItems(request, response);
+            	
             	break;
         }
 
-        this.loadItems(request, response);
 
 	}
 
-	private void loadItem(HttpServletRequest request, HttpServletResponse response) {
+	private void loadItem(HttpServletRequest request, HttpServletResponse response) throws IOException {
 			
 			 int  id =Integer.parseInt( request.getParameter("id"));
 			 Item loaded_item=itemService.loadItem(id);
@@ -77,6 +86,8 @@ public class ItemController extends HttpServlet {
 		            request.getRequestDispatcher("/load-item.jsp").forward(request, response);
 		        } catch (Exception e) {
 		            System.out.println(e.getMessage());
+		            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		            return;
 		        }
 			
 
@@ -84,28 +95,41 @@ public class ItemController extends HttpServlet {
 		
 	}
 
-	private void removeItem(HttpServletRequest request, HttpServletResponse response) {
+	private void removeItem(HttpServletRequest request, HttpServletResponse response) throws IOException {
 		 int  id =Integer.parseInt( request.getParameter("id"));
 	
 		 boolean isRemoved=itemService.removeItem(id);
 		 if (isRemoved) {
-	            this.loadItems(request, response);
+	            //this.loadItems(request, response);
+			 response.sendRedirect("ItemController?action=load-items");
 	        }
+		 else {
+			    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to remove item.");
+			}
 	}
 
-	private void updateItem(HttpServletRequest request, HttpServletResponse response) {
+	private void updateItem(HttpServletRequest request, HttpServletResponse response) throws IOException {
 		 
 		 boolean isUpdated=itemService.updateItem(getItemData(request,response));
 		 if(isUpdated) {
-			 this.loadItems(request, response);
+			// this.loadItems(request, response);
+			 response.sendRedirect("ItemController?action=load-items");
+
 		 }
+		 else {
+			    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to update item.");
+			}
 	}
 
-	private void addItem(HttpServletRequest request, HttpServletResponse response) {
+	private void addItem(HttpServletRequest request, HttpServletResponse response) throws IOException {
 	
 		 boolean isAdded=itemService.saveItem(getItemData(request,response));
 		 if (isAdded) {
-	            this.loadItems(request, response);
+	            //this.loadItems(request, response);
+			 response.sendRedirect("ItemController?action=load-items");
+
+	        } else {
+	            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to Add item.");
 	        }
 		
 	}
@@ -143,10 +167,11 @@ public class ItemController extends HttpServlet {
 	}
 	
 	private  Item getItemData(HttpServletRequest request, HttpServletResponse response) {
+	
 		 String  name =request.getParameter("itemName");
 		 double  price =Double.parseDouble(request.getParameter("itemPrice"));
 		 int  totalNumber = Integer.parseInt(request.getParameter("itemTotalNumber"));
-		 
+		
 		 Item item=new Item(name,price,totalNumber);
 		 
 		 String id = request.getParameter("itemId");
